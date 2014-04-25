@@ -3,7 +3,16 @@ Syrup - a persistent erlang:apply_after.
 
 Usage
 ------------------------------------------------------------------------
-$ syrup:delay(5000, io, format, ["this will be printed in 5s"]).
+1> syrup:start_link().
+2> syrup:delay(5000, io, format, ["this will be printed in 5s"]).
+
+Or:
+1> syrup:start([{file, "/tmp/custom_file"}]).
+2> syrup:delay(5000, io, format, ["all task are persisted"]).
+3> syrup:stop().
+... <- No message will be printed since syrup has stopped. -> ...
+4> syrup:start([{file, "/tmp/custom_file"}]).
+... <- Message will be printed after this point -> ...
 
 Rationale
 ------------------------------------------------------------------------

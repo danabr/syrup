@@ -8,11 +8,13 @@
 -behaviour(gen_server).
 
 %% API
--export([ delay/4, start/0, start_link/0, stop/0 ]).
+-export([ delay/4, start/0, start/1, start_link/0, start_link/1, stop/0 ]).
 
 %% Gen server callbacks.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
+
+-record(state, { file :: string() }).
 
 -record(task, { key        :: term()
               , run_after  :: non_neg_integer()
@@ -23,15 +25,28 @@
 -define(SERVER, ?MODULE).
 
 %%%_* API ==============================================================
-%% @doc Start the syrup server without linking to it.
+%% @doc Alias for start([]).
 -spec start() -> {ok, pid()} | {error, term()}.
-start() ->
-  gen_server:start({local, ?SERVER}, ?MODULE, [], []).
+start() -> start([]).
 
-%% @doc Start the syrup server.
+%% @doc Start the syrup server with custom options and without linking to it.
+%% see start_link/1 for possible options.
+-spec start([{atom(), term()}]) -> {ok, pid()} | {error, term()}.
+start(Options) ->
+  gen_server:start({local, ?SERVER}, ?MODULE, Options, []).
+
+%% @doc Alias for start_link([]).
 -spec start_link() -> {ok, pid()} | {error, term()}.
-start_link() ->
-  gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link() -> start_link([]).
+
+%% @doc Start the syrup server with custom options.
+%% Unknown options will be ignored.
+%% Available options:
+%% file :: string() - Path to file where tasks will be stored.
+%%                    Defaults to "syrup".
+-spec start_link([{atom(), term()}]) -> {ok, pid()} | {error, term()}.
+start_link(Options) ->
+  gen_server:start_link({local, ?SERVER}, ?MODULE, Options, []).
 
 %% @doc Stop the server
 -spec stop() -> ok.
@@ -43,12 +58,14 @@ delay(DelayS, M, F, Args) ->
   gen_server:call(?SERVER, {delay, {DelayS, M, F, Args}}).
 
 %%%_* gen_server callbacks =============================================
-init(_Args) ->
+init(Options) ->
+  State = state_from_options(Options),
   {ok, ?TABLE} = dets:open_file(?TABLE, [ {auto_save, infinity}
                                         , {keypos, #task.key}
+                                        , {file, State#state.file}
                                         ]),
   restore_jobs(),
-  {ok, no_state}.
+  {ok, State}.
 
 terminate(_Reason, _State) -> dets:close(?TABLE).
 
@@ -109,3 +126,14 @@ calculate_delay(#task{run_after=RunTime}) ->
 
 current_time() ->
   calendar:datetime_to_gregorian_seconds(calendar:universal_time()).
+
+state_from_options(Options) ->
+  state_from_options(Options, default_state()).
+
+state_from_options([], State)                                     -> State;
+state_from_options([{file, File}|Rest], State) when is_list(File) ->
+  state_from_options(Rest, State#state{file=File});
+state_from_options([_|Rest], State)                               ->
+  state_from_options(Rest, State).
+
+default_state() -> #state{ file="syrup" }.

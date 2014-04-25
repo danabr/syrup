@@ -10,6 +10,7 @@ ping(Who, PongMsg) -> Who ! PongMsg.
 
 %% Tests
 -include_lib("eunit/include/eunit.hrl").
+-define(SYRUP_FILE, "test/syrup.db").
 
 syrup_test_() ->
   {timeout, 60, { foreach
@@ -22,8 +23,8 @@ syrup_test_() ->
     ]}}.
 
 setup() ->
-  file:delete("syrup"),
-  {ok, Pid} = syrup:start(),
+  file:delete(?SYRUP_FILE),
+  {ok, Pid} = start_syrup(),
   Pid.
 
 teardown(_) ->
@@ -50,7 +51,7 @@ test_stop_before_task_is_started(_) ->
     syrup:delay(1, syrup_tests, ping, [self(), message_received]),
     syrup:stop(),
     assert_no_message_received(1200),
-    syrup:start_link(),
+    {ok, _} = start_syrup(),
     assert_received(100, message_received)
   end).
 
@@ -59,7 +60,7 @@ test_kill_before_task_is_started(SyrupPid) ->
     syrup:delay(1, syrup_tests, ping, [self(), message_received]),
     kill_pid(SyrupPid),
     assert_no_message_received(1200),
-    {ok, _} = syrup:start(),
+    {ok, _} = start_syrup(),
     assert_received(100, message_received)
   end).
 
@@ -87,3 +88,5 @@ kill_pid(Pid) ->
   after
     1000 -> error({failed_to_kill_pid, Pid})
   end.
+
+start_syrup() -> syrup:start([{file, ?SYRUP_FILE}]).
