@@ -1,0 +1,14 @@
+Syrup - a persistent erlang:apply_after.
+========================================================================
+
+Usage
+------------------------------------------------------------------------
+$ syrup:delay(5000, io, format, ["this will be printed in 5s"]).
+
+Rationale
+------------------------------------------------------------------------
+syrup can be used whenever you want to do a erlang:apply:after, but also
+want to make sure that delayed tasks are not lost if the node goes down.
+syrup provides this by using a dets table. If the syrup server dies and
+and is later started again, all remaining delayed tasks will be
+rescheduled.
